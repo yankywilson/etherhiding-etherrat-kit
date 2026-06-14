@@ -1,0 +1,12 @@
+indicator,type,confidence,role,context
+0x45729d7424d7310a0c041a2906ba95a4bd5ebfca,eth_contract,high,resolver_live,"Live high-rotation resolver; decoded C2 isocell/dmors/leopriego"
+0xe26c57b7fa8de030238b0a71b3d063397ac127d3,eth_contract,high,resolver_known,"Previously public resolver contract"
+0xA001D3863b138eD523f255f62725AB1ddc82af87,eth_wallet,high,operator,"Tenant wallet writing C2 to 0x45729d74..."
+0x8D7e3Cc5342439fF28C589a902B685EA4d398C12,eth_wallet,moderate,operator,"Operator wallet (deployer==tenant)"
+0x8BFafba01a34AA6D53ADcd1eAC5FF5A7ee38a40AD,eth_wallet,moderate,operator,"Operator wallet"
+0x2DBcA26AdDf031adA655861933d0386a39eA6427,eth_wallet,moderate,operator,"Operator wallet"
+0xE941A9b283006F5163EE6B01c1f23AA5951c4C8D,eth_wallet,moderate,operator,"Operator wallet"
+0x3ca6280dac32fee85e9d3d81188d59eed7e4966e5b3df13a910924cf6ade2d47,eth_event_topic0,high,family_fingerprint,"StringChanged(address,string) - family discovery selector"
+0x7fcaf666,eth_selector,high,family_fingerprint,"setString(string) - C2 write"
+0x7d434425,eth_selector,high,family_fingerprint,"getString(address) - C2 read"
+NOTE,info,high,family_scope,"24 byte-identical + 9 variant contracts identified; ~30 operator wallets total. Full enumeration reproducible via Dune query in analysis/contract_bytecode.md"

@@ -1,0 +1,77 @@
+// KQL — Distributed EtherHiding Resolver Kit (EtherRAT family)
+// Report: CTI-2026-0614-ETHERHIDING-KIT  |  TLP:CLEAR
+// Microsoft Defender XDR / Sentinel. Tune time windows and dev-host exclusions.
+
+// =====================================================================
+// 1. EtherHiding behavior: one host querying MULTIPLE Ethereum RPC providers
+//    (the strongest network signal — correlation, not a single hit)
+// =====================================================================
+let rpcProviders = dynamic([
+  "blastapi.io","drpc.org","merkle.io","publicnode.com",
+  "tenderly.co","mevblocker.io","flashbots.net"]);
+DeviceNetworkEvents
+| where Timestamp > ago(7d)
+| where RemoteUrl has_any (rpcProviders)
+| summarize ProviderCount = dcount(tostring(extract(@"([a-z0-9-]+\.[a-z]+)$", 1, RemoteUrl))),
+            Providers = make_set(RemoteUrl, 20),
+            FirstSeen = min(Timestamp), LastSeen = max(Timestamp)
+        by DeviceName, InitiatingProcessFileName, InitiatingProcessAccountName
+| where ProviderCount >= 3            // 3+ distinct providers from one host = EtherHiding pattern
+// | where InitiatingProcessFileName !in ("code.exe","node.exe-dev",...)  // exclude known dev tooling
+| order by ProviderCount desc
+
+// =====================================================================
+// 2. Conhost --headless spawning node.exe or cmd.exe (loader exec chain)
+// =====================================================================
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where InitiatingProcessFileName =~ "conhost.exe"
+| where InitiatingProcessCommandLine has "--headless"
+| where FileName in~ ("node.exe","cmd.exe")
+| project Timestamp, DeviceName, AccountName,
+          InitiatingProcessCommandLine, FileName, ProcessCommandLine
+
+// =====================================================================
+// 3. node.exe running a .xml script arg from AppData (resolver stage)
+// =====================================================================
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where FileName =~ "node.exe"
+| where ProcessCommandLine has ".xml"
+| where ProcessCommandLine has_any ("\\AppData\\Local\\","\\AppData\\Roaming\\")
+| project Timestamp, DeviceName, AccountName, ProcessCommandLine, FolderPath
+
+// =====================================================================
+// 4. node.exe masqueraded under Oracle Java path
+// =====================================================================
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where FolderPath has "\\Oracle\\Java\\javapath\\" and FileName =~ "node.exe"
+| project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine
+
+// =====================================================================
+// 5. Known file hashes (loader + resolver + artifacts)
+// =====================================================================
+let badHashes = dynamic([
+  "56058b92ce87a8e6a46b1b9a71e2cd0b32325e6a54e26d6e500f3b0b0f05cc0b",
+  "bbc4150defcc2048213317ed7c9ff91c0b08f7507bec1faa1a2e8a309997121b",
+  "9c30fab8de6f25ce142f11f812ef9b2d31edca1f31807ecbaa7a6059eb5378a2",
+  "5b52830199de5e06029c8c365d10d6cd7103877d4f0c22e06e864b767cde3cf9",
+  "11392556249f7a5dbf799bd2cebaac52f3ccb1b330089cdb7bda3fd248ea9667"]);
+DeviceFileEvents
+| where Timestamp > ago(30d)
+| where SHA256 in (badHashes)
+| project Timestamp, DeviceName, FileName, FolderPath, SHA256, InitiatingProcessCommandLine
+
+// =====================================================================
+// 6. Contact with known panel / C2 (tune as IOCs rotate)
+// =====================================================================
+let c2 = dynamic([
+  "31.76.16.211","aravisblog.com","rubysen.com","ager-stp.org",
+  "issueall.com","webiqonline.com","dakindsoups.com","dmors.com",
+  "leopriego.com","isocell.swedencentral.cloudapp.azure.com"]);
+DeviceNetworkEvents
+| where Timestamp > ago(30d)
+| where RemoteUrl has_any (c2) or RemoteIP in (c2)
+| project Timestamp, DeviceName, RemoteUrl, RemoteIP, RemotePort,
+          InitiatingProcessFileName, InitiatingProcessCommandLine

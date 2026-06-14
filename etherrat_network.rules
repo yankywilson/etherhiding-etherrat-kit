@@ -1,0 +1,32 @@
+# Suricata — Distributed EtherHiding Resolver Kit (EtherRAT family)
+# Report: CTI-2026-0614-ETHERHIDING-KIT  |  TLP:CLEAR
+#
+# IMPORTANT: RPC traffic is TLS. The RPC-provider rules below match on TLS SNI,
+# not payload. Ethereum RPC egress is legitimate for developer/wallet hosts;
+# scope these rules to NON-developer segments to avoid false positives. They are
+# hunting/visibility rules, not blanket blocks.
+
+# --- Panel fingerprint: X-Bot-Server CORS header in HTTP response ---
+alert http any any -> any any (msg:"ETHERRAT Kit Panel X-Bot-Server CORS header"; flow:established,to_client; http.header; content:"Access-Control-Allow-Headers|3a|"; content:"X-Bot-Server"; distance:0; classtype:trojan-activity; reference:url,github.com; sid:91000001; rev:1; metadata:family EtherRAT, confidence high;)
+
+# --- Known panel IP ---
+alert tls any any -> 31.76.16.211 any (msg:"ETHERRAT Kit Panel direct contact 31.76.16.211"; flow:established,to_server; classtype:trojan-activity; sid:91000002; rev:1; metadata:family EtherRAT, confidence high;)
+
+# --- Hijacked aged delivery domain via SNI ---
+alert tls any any -> any any (msg:"ETHERRAT Hijacked aged domain aravisblog.com SNI"; flow:established,to_server; tls.sni; content:"aravisblog.com"; nocase; endswith; classtype:trojan-activity; sid:91000003; rev:1; metadata:family EtherRAT, confidence high;)
+
+# --- EtherHiding: endpoint querying multiple ETH RPC providers (scope to non-dev) ---
+# Fire individually; correlation of 3+ distinct providers from one host within a
+# short window is the real signal (do that in SIEM, see KQL pack).
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider blastapi (scope non-dev)"; flow:established,to_server; tls.sni; content:"blastapi.io"; nocase; endswith; classtype:misc-activity; sid:91000010; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider drpc (scope non-dev)"; flow:established,to_server; tls.sni; content:"drpc.org"; nocase; endswith; classtype:misc-activity; sid:91000011; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider merkle (scope non-dev)"; flow:established,to_server; tls.sni; content:"merkle.io"; nocase; endswith; classtype:misc-activity; sid:91000012; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider publicnode (scope non-dev)"; flow:established,to_server; tls.sni; content:"publicnode.com"; nocase; endswith; classtype:misc-activity; sid:91000013; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider tenderly (scope non-dev)"; flow:established,to_server; tls.sni; content:"tenderly.co"; nocase; endswith; classtype:misc-activity; sid:91000014; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider mevblocker (scope non-dev)"; flow:established,to_server; tls.sni; content:"mevblocker.io"; nocase; endswith; classtype:misc-activity; sid:91000015; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERHIDING ETH RPC provider flashbots (scope non-dev)"; flow:established,to_server; tls.sni; content:"flashbots.net"; nocase; endswith; classtype:misc-activity; sid:91000016; rev:1; metadata:family EtherRAT, confidence moderate;)
+
+# --- JA3 client fingerprints (loader) ---
+# Requires ja3 enabled in suricata.yaml. Moderate confidence.
+alert tls any any -> any any (msg:"ETHERRAT Loader JA3 30490d79"; ja3.hash; content:"30490d79325943f1ebf6750aae4e304c"; classtype:trojan-activity; sid:91000020; rev:1; metadata:family EtherRAT, confidence moderate;)
+alert tls any any -> any any (msg:"ETHERRAT Loader JA3 d67b0948"; ja3.hash; content:"d67b094811e5145139d7cea5f014309f"; classtype:trojan-activity; sid:91000021; rev:1; metadata:family EtherRAT, confidence moderate;)
